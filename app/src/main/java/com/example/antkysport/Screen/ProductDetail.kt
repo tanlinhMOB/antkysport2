@@ -1,21 +1,29 @@
+@file:OptIn(ExperimentalLayoutApi::class)
+
 package com.example.antkysport.Screen
 
-import android.content.Context
-import android.content.SharedPreferences
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -29,7 +37,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavBackStackEntry
@@ -37,8 +44,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberImagePainter
 import com.example.antkysport.Screen.ui.theme.ComvietTheme
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 
-import com.google.gson.Gson
+import androidx.compose.ui.Alignment
+import com.example.antkysport.ViewModel.AuthViewModel
 
 class ProductDetail : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,12 +57,14 @@ class ProductDetail : ComponentActivity() {
         setContent {
             ComvietTheme {
                 val navController = rememberNavController()
+                val authViewModel = AuthViewModel(this)
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     content = { innerPadding ->
                         ProductDetailScreen(
                             navController = navController,
                             backStackEntry = navController.previousBackStackEntry!!,
+                            authViewModel,
                             modifier = Modifier.padding(innerPadding)
                         )
                     }
@@ -61,217 +73,276 @@ class ProductDetail : ComponentActivity() {
         }
     }
 }
-
-data class ProductItem(
-    var title: String,            // Tên sản phẩm
-    var code: String,       // Mã sản phẩm của sản phẩm
-    var quantity: Number,          // số lượng của sản phẩm
-    var price: Double,             //Giá của sản phẩm
-    var size: Array<String>,     // Kích thước sản phẩm
-    var color: Array<String>,   //màu của sản phẩm
-    var image: String,          // Ảnh của sản phẩm
-    var category: String,        // Danh mục của sản phẩm
-    var description: String,    // Mô tả sản phẩm
-    val createdAt: String,       // Thời gian sản phẩm được tạo
-    val updatedAt: String
-)
-
-data class CartItem(
-    val code: String,
-    val quantity: Number
-)
-
 @Composable
-fun ProductDetailScreen(navController: NavHostController, backStackEntry: NavBackStackEntry, modifier: Modifier = Modifier) {
+fun ProductDetailScreen(navController: NavHostController, backStackEntry: NavBackStackEntry, authViewModel: AuthViewModel,modifier: Modifier = Modifier) {
     val productTitle = backStackEntry.arguments?.getString("title") ?: ""
     val productCode = backStackEntry.arguments?.getString("code") ?: ""
-    val productQuantity = backStackEntry.arguments?.getString("quantity")?.toInt() ?: 0
     val productPrice = backStackEntry.arguments?.getString("price")?.toDouble() ?: 0.0
-
-    val sizeString = backStackEntry.arguments?.getString("size") ?: ""
-    val colorString = backStackEntry.arguments?.getString("color") ?: ""
-    val productSize = if (sizeString.isNotEmpty()) sizeString.split(",") else emptyList()
-    val productColor = if (colorString.isNotEmpty()) colorString.split(",") else emptyList()
-
     val productImage = backStackEntry.arguments?.getString("image") ?: ""
-    val productCategory = backStackEntry.arguments?.getString("category") ?: ""
-    val productDescription = backStackEntry.arguments?.getString("description") ?: ""
-    val productCreatedAt = backStackEntry.arguments?.getString("createdAt") ?: ""
-    val productUpdatedAt = backStackEntry.arguments?.getString("updatedAt") ?: ""
+    val productQuantity = backStackEntry.arguments?.getString("quantity") ?.toInt() ?:0
+    val productDescription = backStackEntry.arguments?.getString("description") ?:""
+    val productColor = backStackEntry.arguments?.getString("color")?.split(",") ?: emptyList() // Dạng List<String>
+    val productSize = backStackEntry.arguments?.getString("size")?.split(",") ?: emptyList()   // Dạng List<String>
 
+    // Xác định trạng thái hiển thị dựa trên productQuantity
+    val productStatusText = if (productQuantity > 0) "Còn hàng" else "Đang hết hàng"
+    val productStatusColor = if (productQuantity > 0) Color.Green else Color.Red
+    var selectedsize by remember { mutableStateOf<String?>(null) } // Lưu giá trị size được chọn
+    var selectedcolor by remember { mutableStateOf<String?>(null) } // Lưu giá trị color được chọn
     val context = LocalContext.current
+
+    Log.d("pd", "selectedsize: "+selectedsize)
+    Log.d("pd", "selectedcolor: "+selectedcolor)
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 90.dp)
             .background(Color(0xFFF8F9FA)) // Màu nền sáng nhẹ cho toàn màn hình
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Image(
-                painter = rememberImagePainter(productImage),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-                    .clip(RoundedCornerShape(12.dp)) // Bo góc hình ảnh
-            )
+                Image(
+                    painter = rememberImagePainter(productImage),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                        .clip(RoundedCornerShape(12.dp)) // Bo góc hình ảnh
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = productTitle,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                fontSize = 32.sp, // Điều chỉnh kích thước chữ
-                color = Color(0xFF333333) // Màu chữ tối
-            )
+                Text(
+                    text = productTitle,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    fontSize = 32.sp,
+                    color = Color(0xFF333333)
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "Mã sản phẩm: $productCode",
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color(0xFF666666) // Màu chữ trung tính cho thông tin phụ
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Giá: $productPrice",
-                style = MaterialTheme.typography.bodyLarge.copy(color = Color.Red),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Medium // Chữ in đậm cho giá sản phẩm
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Mô tả:",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color(0xFF333333)
-            )
-            Text(
-                text = productDescription,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF666666)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Nút "Mua hàng"
-            Button(
-                onClick = {
-                    val sharedPreferences: SharedPreferences = context.getSharedPreferences("cart_prefs", Context.MODE_PRIVATE)
-                    val editor = sharedPreferences.edit()
-
-                    val newProduct = ProductItem(
-                        title = productTitle,
-                        code = productCode,
-                        quantity = productQuantity,
-                        price = productPrice,
-                        size = productSize.toTypedArray(),
-                        color = productColor.toTypedArray(),
-                        image = productImage,
-                        category = productCategory,
-                        description = productDescription,
-                        createdAt = productCreatedAt,
-                        updatedAt = productUpdatedAt
+                Spacer(modifier = Modifier.height(25.dp))
+                Row( modifier = Modifier
+                    .fillMaxWidth(), // Row sẽ chiếm toàn bộ chiều rộng
+                    horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        text = "Mã: $productCode",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color(0xFF666666)
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    val existingProducts = sharedPreferences.getString("cartItems", "[]")
-                    val productList = Gson().fromJson(existingProducts, Array<ProductItem>::class.java).toMutableList()
+                    // Hiển thị Text với trạng thái
+                    Text(
+                        text = "Trạng thái: ${productStatusText}",
+                        color = productStatusColor,
+                        style = MaterialTheme.typography.bodyLarge // Bạn có thể thay đổi kiểu hiển thị ở đây
+                    )
+                }
 
-                    productList.add(newProduct)
 
-                    editor.putString("cartItems", Gson().toJson(productList))
-                    editor.apply()
+                Spacer(modifier = Modifier.height(8.dp))
 
-                    Toast.makeText(context, "Mua hàng thành công", Toast.LENGTH_SHORT).show()
+                Text(
+                    text = "Giá: $productPrice vnđ",
+                    style = MaterialTheme.typography.bodyLarge.copy(color = Color.Red),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium
+                )
 
-                    navController.navigate("cart")
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(25.dp)),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
-            ) {
-                Text(text = "Mua hàng", fontSize = 18.sp, color = Color.White)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Mô tả:",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color(0xFF333333)
+                )
+
+                Text(
+                    text = productDescription,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF666666)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            item {
+                Text(
+                    text = "Chọn cỡ:",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                SizeRadioButtons(productSize, onSizeSelected = {size-> selectedsize = size})
 
-            // Nút "Yêu thích"
-            Button(
-                onClick = {
-                    val sharedPreferences: SharedPreferences = context.getSharedPreferences("favourites_prefs", Context.MODE_PRIVATE)
-                    val editor = sharedPreferences.edit()
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    // Tạo đối tượng sản phẩm mới
-                    val favouriteProduct = ProductItem(
-                        title = productTitle,
-                        code = productCode,
-                        quantity = productQuantity,
-                        price = productPrice,
-                        size = productSize.toTypedArray(),
-                        color = productColor.toTypedArray(),
-                        image = productImage,
-                        category = productCategory,
-                        description = productDescription,
-                        createdAt = productCreatedAt,
-                        updatedAt = productUpdatedAt
-                    )
+                Text(
+                    text = "Chọn màu sắc:",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                ColorRadioButtons(productColor, onColorSelected = {color-> selectedcolor = color})
 
-                    // Lấy danh sách sản phẩm yêu thích hiện tại từ SharedPreferences
-                    val existingFavourites = sharedPreferences.getString("favouriteItems", "[]")
-                    val favouriteList = Gson().fromJson(existingFavourites, Array<ProductItem>::class.java).toMutableList()
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
-                    // Thêm sản phẩm vào danh sách yêu thích
-                    favouriteList.add(favouriteProduct)
+            item {
+                var quantity by remember { mutableStateOf(1) } // Biến lưu số lượng sản phẩm
 
-                    // Lưu lại danh sách yêu thích đã cập nhật
-                    editor.putString("favouriteItems", Gson().toJson(favouriteList))
-                    editor.apply()
-                    Toast.makeText(context, Gson().toJson(favouriteList), Toast.LENGTH_LONG).show()
-                    Toast.makeText(context, "Đã thêm vào yêu thích", Toast.LENGTH_SHORT).show()
-                    // Điều hướng sang màn hình yêu thích sau khi thêm
-                    navController.navigate("favourite")  // Điều hướng tới màn hình yêu thích
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(25.dp)),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    // Hàng chứa các nút tăng giảm số lượng
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Số lượng:",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.Black
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Text giảm số lượng
+                            Text(
+                                text = "-",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (quantity > 1) Color.Black else Color.Gray, // Màu sắc thay đổi theo trạng thái
+                                modifier = Modifier
+                                    .clickable(enabled = quantity > 1) { if (quantity > 1) quantity-- } // Giảm số lượng nếu > 1
+                                    .padding(8.dp) // Thêm khoảng trống
+                            )
+
+                            // Hiển thị số lượng
+                            Text(
+                                text = quantity.toString(),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.Black
+                            )
+
+                            // Text tăng số lượng
+                            Text(
+                                text = "+",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (quantity < 5) Color.Black else Color.Gray, // Màu sắc thay đổi theo trạng thái
+                                modifier = Modifier
+                                    .clickable(enabled = quantity < 5) { if (quantity < 5) quantity++ } // Tăng số lượng nếu < 5
+                                    .padding(8.dp) // Thêm khoảng trống
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp)) // Khoảng cách giữa các thành phần
+
+                    // Nút "Thêm vào giỏ"
+
+                    Button(
+                        onClick = {
+                            // Gọi ViewModel để thêm sản phẩm vào giỏ hàng
+                            if(selectedsize!=null&&selectedcolor!=null){
+                                authViewModel.addToCart(
+                                    code = productCode,
+                                    size_item = selectedsize,
+                                    color = selectedcolor,
+                                    quantity_cart = quantity, // Truyền số lượng hiện tại
+                                    onSuccess = {
+                                        Toast.makeText(context, "Sản phẩm đã được thêm vào giỏ", Toast.LENGTH_SHORT).show()
+                                        navController.navigate("cart")
+                                    },
+                                    onError = {
+                                        Toast.makeText(context, "Lỗi thêm sản phẩm", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            }else{
+                                Toast.makeText(context, "Vui lòng chọn size và màu trước khi thêm !", Toast.LENGTH_SHORT).show()
+                            }
+
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .clip(RoundedCornerShape(25.dp)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
+                    ) {
+                        Text(text = "Thêm vào giỏ", fontSize = 18.sp, color = Color.White)
+                    }
+                }
+            }
+
+        }
+    }
+}
+
+@Composable
+fun SizeRadioButtons(sizes: List<String>,onSizeSelected: (String) -> Unit) {
+
+    var selectedSize by remember { mutableStateOf<String?>(null) } // Keeps track of the selected size
+
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+        sizes.forEach { size ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(end = 8.dp)
             ) {
-                Text(text = "Yêu thích", fontSize = 18.sp, color = Color.White)
+                RadioButton(
+                    selected = selectedSize == size,
+                    onClick = {
+                        selectedSize = size // Update the selected size
+                        onSizeSelected(size)
+                    }
+                )
+                Text(
+                    text = size,
+                    modifier = Modifier.padding(start = 4.dp), // Add space between radio button and label
+                    color = if (selectedSize == size) Color.Black else Color.Gray,
+                    fontWeight = if (selectedSize == size) FontWeight.Bold else FontWeight.Normal
+                )
             }
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun ProductDetailScreenPreview() {
-    ComvietTheme  {
-        val navController = rememberNavController()
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            content = { innerPadding ->
-                ProductDetailScreen(
-                    navController = navController,
-                    backStackEntry = navController.previousBackStackEntry!!,
-                    modifier = Modifier.padding(innerPadding)
+fun ColorRadioButtons(colors: List<String>,onColorSelected:(String)-> Unit) {
+    var selectedColor by remember { mutableStateOf<String?>(null) }
+
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+    ) {
+        colors.forEach { color ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(end = 8.dp)
+            ) {
+                RadioButton(
+                    selected = selectedColor == color,
+                    onClick = {
+                        selectedColor = color
+                        onColorSelected(color)
+                    }
+                )
+                Text(
+                    text = color,
+                    modifier = Modifier.padding(start = 8.dp),
+                    color = if (selectedColor == color) Color.Black else Color.Gray,
+                    fontWeight = if (selectedColor == color) FontWeight.Bold else FontWeight.Normal
                 )
             }
-        )
+        }
     }
 }
+

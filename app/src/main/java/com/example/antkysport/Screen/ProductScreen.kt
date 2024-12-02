@@ -1,7 +1,9 @@
 package com.example.antkysport.Screen
 
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,10 +24,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.TabRowDefaults.Divider
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,42 +37,49 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.antkysport.R
 import com.example.antkysport.Screen.ui.theme.ComvietTheme
-import com.example.antkysport.ViewModel.UserViewModel
+import com.example.antkysport.ViewModel.AuthViewModel
+import com.example.antkysport.ViewModel.AuthViewModelFactory
 
 
 class ProductScreen : ComponentActivity() {
+    // Khởi tạo AuthViewModel
+    val authViewModel = AuthViewModel(this)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        //fetch user data
         enableEdgeToEdge()
         setContent {
-//            ComvietTheme  {
-//                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    ProfileScreenUI()
-//                }
+            ProfileScreenUI(authViewModel)
             }
         }
     }
 
 
 @Composable
-fun ProfileScreenUI(
-                    navController: NavController? = null,
-                    userViewModel: UserViewModel = viewModel()
+fun ProfileScreenUI(viewModel: AuthViewModel,
+                    navController: NavController? = null
 ) { // Thêm NavController
     var showDialog by remember { mutableStateOf(false) } // Biến trạng thái để kiểm soát dialog
-//    val userName by userViewModel.userName.observeAsState("Tên Người Dùng")
-//    val userEmail by userViewModel.userEmail.observeAsState("email@domain.com")
+    val userName = remember { mutableStateOf(viewModel.userName) }
+    val userEmail = remember { mutableStateOf(viewModel.userEmail) }
+    val context = LocalContext.current
 
-
+    LaunchedEffect(Unit) {
+        viewModel.fetchUser { errorMesssage ->
+            Toast.makeText(context, errorMesssage, Toast.LENGTH_SHORT).show()
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -112,7 +121,7 @@ fun ProfileScreenUI(
 
                 // Name
                 Text(
-                    text = "userName",
+                    text = viewModel.userName ?:"Unknown User",
                     fontWeight = FontWeight.Bold,
                     color = Color.Black,
                     fontSize = 24.sp,
@@ -121,7 +130,7 @@ fun ProfileScreenUI(
 
                 // Email
                 Text(
-                    text = "userEmail",
+                    text = viewModel.userEmail ?: "Unknown Email",
                     color = Color.Black,
                     fontSize = 16.sp,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -222,12 +231,4 @@ fun LogoutDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
             }
         }
     )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ProfileScreenPreview() {
-    ComvietTheme  {
-        ProfileScreenUI()
-    }
 }

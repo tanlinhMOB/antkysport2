@@ -6,20 +6,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.antkysport.Model.Cart
 import com.example.antkysport.Model.Product
 import com.example.antkysport.Network.RetrofitInstance
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import okio.IOException
 import retrofit2.HttpException
 
 class ProductViewModel : ViewModel() {
     var productList by mutableStateOf<List<Product>>(emptyList()) // Danh sách sản phẩm
     var searchResults by mutableStateOf<List<Product>>(emptyList()) // Danh sách kết quả tìm kiếm
     var isSearching by mutableStateOf(false) // Trạng thái tìm kiếm
+    private val _product = MutableStateFlow<Product?>(null)
+    val product: StateFlow<Product?> = _product
     init {
         fetchProducts()
     }
-
-
 
     fun fetchProducts() {
         viewModelScope.launch {
@@ -27,24 +31,59 @@ class ProductViewModel : ViewModel() {
                 val response = RetrofitInstance.api.getProducts()
                 if (response.isSuccessful) {
                     val products = response.body()
-                    if (products != null) {
+
+                    if (!products.isNullOrEmpty()) {
                         productList = products
-                        Log.d("ProductViewModel", "Products loaded: $products")
+                        Log.d("ProductViewModel", "Products loaded successfully: ${productList.size}")
+                        Log.d("ProductViewModel", "Products loaded successfully: ${productList}")
                     } else {
-                        Log.e("ProductViewModel", "No products found")
+                        Log.w("ProductViewModel", "No products found in API response")
+                        // Update UI state, e.g., show empty state
                     }
                 } else {
-                    Log.e("ProductViewModel", "API Error: ${response.code()} - ${response.message()}")
+                    Log.e(
+                        "ProductViewModel",
+                        "API Error: Code ${response.code()}, Message: ${response.message()}"
+                    )
+                    // Notify UI of error, e.g., via LiveData or StateFlow
                 }
             } catch (e: HttpException) {
-                Log.e("ProductViewModel", "HttpException: ${e.message}")
+                Log.e("ProductViewModel", "HttpException: ${e.message()}")
                 e.printStackTrace()
+                // Notify UI of specific HTTP error
+            } catch (e: IOException) {
+                Log.e("ProductViewModel", "Network error: ${e.message}")
+                e.printStackTrace()
+                // Notify UI about network issues
             } catch (e: Exception) {
-                Log.e("ProductViewModel", "Exception: ${e.message}")
+                Log.e("ProductViewModel", "Unexpected error: ${e.message}")
                 e.printStackTrace()
+                // Notify UI about unexpected errors
             }
         }
     }
+
+
+    fun getProductsByCodes(codes: List<String>, onSuccess: (List<Product>) -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val products = codes.mapNotNull { code ->
+                    try {
+                        RetrofitInstance.api.getProductByCode(code) // Lấy sản phẩm qua mã
+                    } catch (e: Exception) {
+                        null // Bỏ qua nếu không tìm thấy sản phẩm
+                    }
+                }
+                onSuccess(products) // Trả về danh sách sản phẩm
+            } catch (e: Exception) {
+                onError(e.message ?: "Lỗi không xác định khi lấy sản phẩm.")
+            }
+        }
+    }
+
+
+
+
 
     fun searchProduct(query: String) {
         viewModelScope.launch {
@@ -72,48 +111,6 @@ class ProductViewModel : ViewModel() {
         isSearching = false // Đặt trạng thái không tìm kiếm
     }
 
-    fun addProduct(
-        title: String,
-        code: String,
-        quantity: Number,
-        price: Double,
-        size: Array<String>,
-        color: Array<String>,
-        image: String,
-        category: String,
-        description: String,
-        createdAt: String,
-        updatedAt: String,
-        onResult: () -> Unit
-    ) {
-        viewModelScope.launch {
-            try {
-                val response = RetrofitInstance.api.addProduct(
-                    Product(
-                        title = title,
-                        code = code,
-                        quantity = quantity,
-                        price = price,
-                        size = size,
-                        color = color,
-                        image = image,
-                        category = category,
-                        description = description,
-                        createdAt = "2024-10-16", // Giá trị của ngày tạo
-                        updatedAt = "2024-10-16"
-                    )
-                )
-                if (response.isSuccessful) {
-                    Log.d("ProductViewModel", "Sản phẩm đã được thêm thành công")
-                    onResult() // Gọi lại hàm để quay lại màn hình trước
-                } else {
-                    Log.e("ProductViewModel", "Lỗi khi thêm sản phẩm: ${response.message()}")
-                }
-            } catch (e: Exception) {
-                Log.e("ProductViewModel", "Lỗi khi thêm sản phẩm: ${e.message}")
-            }
-        }
-    }
 
 
 }

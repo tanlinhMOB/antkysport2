@@ -14,9 +14,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -29,12 +27,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -42,6 +37,7 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberImagePainter
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import com.example.antkysport.R
 import com.example.antkysport.Screen.ui.theme.ComvietTheme
+import com.example.antkysport.ViewModel.AuthViewModel
 import com.example.antkysport.ViewModel.ProductViewModel
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.SwipeRefreshState
@@ -57,6 +54,8 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 class Home : ComponentActivity() {
+    val authViewModel = AuthViewModel(this)
+    val productViewModel = ProductViewModel()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -67,9 +66,13 @@ class Home : ComponentActivity() {
 
                 // Scaffold chứa bố cục chính của ứng dụng, bao gồm bottom bar và phần nội dung chính
                 Scaffold(
-                    bottomBar = { BottomAppBarContent(navController, "Home") } // Thiết lập thanh điều hướng dưới cùng
+                    bottomBar =
+                       {
+                            BottomAppBarContent(navController, "Home") // Your Bottom App Bar content
+                        }
                 ) {
-                    NavHostScreen(navController = navController, productViewModel = ProductViewModel()) // Đặt NavHost để điều hướng màn hình
+                    // Main content
+                    NavHostScreen(navController = navController, productViewModel = ProductViewModel(), authViewModel)
                 }
 
             }
@@ -78,7 +81,8 @@ class Home : ComponentActivity() {
 }
 
 @Composable
-fun NavHostScreen(navController: NavHostController, productViewModel: ProductViewModel) {
+fun NavHostScreen(navController: NavHostController, productViewModel: ProductViewModel,authViewModel:AuthViewModel) {
+
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
             HomeScreen(
@@ -88,18 +92,19 @@ fun NavHostScreen(navController: NavHostController, productViewModel: ProductVie
         }
 
         composable(
-            "productDetail/{title}/{code}/{quantity}/{price}/{size}/{color}/{image}/{category}/{description}/{createdAt}/{updatedAt}",
+            "productDetail/{title}/{code}/{price}/{quantity}/{description}/{image}/{color}/{size}",
         ) { backStackEntry ->
-            ProductDetailScreen(navController = navController, backStackEntry = backStackEntry)
+            ProductDetailScreen(navController = navController, backStackEntry = backStackEntry,authViewModel)
+            Log.d("zzz", "check_backStackEntry: "+backStackEntry)
         }
         composable("cart") {
-            Cart(navController = navController) // Màn hình giỏ hàng
+            CartScreen(navController = navController,authViewModel, productViewModel = productViewModel) // Màn hình giỏ hàng
         }
         composable("history") {
-            History(navController)
+            History(navController, viewModel = authViewModel)
         }
         composable("account"){
-            ProfileScreenUI(navController)
+            ProfileScreenUI(viewModel = authViewModel,navController)
         }
 
         composable("wallet"){
@@ -241,18 +246,11 @@ fun CategoryList(categories: List<Pair<Int, String>>, modifier: Modifier = Modif
 }
 
 @Composable
-fun ProductItem(
+fun ProductItems(
     title: String,
     code: String,
-    quantity: Number,
     price: Double,
-    size: Array<String>,
-    color: Array<String>,
     image: String,
-    category: String,
-    description: String,
-    createdAt: String,
-    updatedAt: String,
     modifier: Modifier = Modifier,
     onclick: () -> Unit
 ) {
@@ -294,11 +292,11 @@ fun ProductItem(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "$price $",
+                    text = "$price",
                     style = MaterialTheme.typography.button.copy(color = Color.Red)
                 )
                 Text(
-                    text = "Code: $code",
+                    text = "$code",
                     style = MaterialTheme.typography.button,
                     color = Color.Gray
                 )
@@ -316,34 +314,12 @@ fun ProductListScreen(navController: NavHostController, productViewModel: Produc
 //        Log.d("ProductListScreen", "Displaying full product list: ${productViewModel.productList.joinToString { it.title }}")
 //        productViewModel.productList
 //    }
-    val products = listOf(
-        ProductItem(
-            title = "Sản phẩm 1",
-            code = "SP001",
-            quantity = 10,
-            price = 100.0,
-            size = arrayOf("S", "M", "L"),
-            color = arrayOf("Đỏ", "Xanh", "Vàng"),
-            image = "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcT5CdY9VHE33vBsrR95psqSIKh6mXAIj2e2hwnuWOBFqQexIoFOpCei3SKlYnBxpd7_rucqcQ3IyjlxkVIC5DDJDkAdYIDt0wsTd_qhaT-ME6Vy1kdp0bUcog&usqp=CAc",
-            category = "Áo thun",
-            description = "Mô tả sản phẩm 1",
-            createdAt = "2024-11-21",
-            updatedAt = "2024-11-21"
-        ),
-        ProductItem(
-            title = "Sản phẩm 2",
-            code = "SP002",
-            quantity = 5,
-            price = 150.0,
-            size = arrayOf("M", "L"),
-            color = arrayOf("Đen", "Trắng"),
-            image = "https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcR1y5mgINhTGxjG8ckeeGN2fvmca4bRyPYPJDnHiOTW6aeC-8aeB_e2_6RCd3G-0SZVbvJK0LWJ0PzSwHmmrZ2dPicGBJ_9j0HFGhNM6QoanYnUK5Ez-gs8iSQm3yaQqmbwwaFsTg&usqp=CAc",
-            category = "Áo thun",
-            description = "Mô tả sản phẩm 2",
-            createdAt = "2024-11-20",
-            updatedAt = "2024-11-21"
-        )
-    )
+
+// Gọi fetchProducts khi ViewModel được tạo ra
+    LaunchedEffect(Unit) {
+        productViewModel.fetchProducts()
+    }
+    val products = productViewModel.productList
     val isRefreshing = remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -360,7 +336,9 @@ fun ProductListScreen(navController: NavHostController, productViewModel: Produc
     ) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 100.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -369,21 +347,17 @@ fun ProductListScreen(navController: NavHostController, productViewModel: Produc
                 val encodedImageUrl = URLEncoder.encode(product.image, StandardCharsets.UTF_8.toString())
                 val encodedSize = URLEncoder.encode(product.size.joinToString(","), StandardCharsets.UTF_8.toString())
                 val encodedColor = URLEncoder.encode(product.color.joinToString(","), StandardCharsets.UTF_8.toString())
-                ProductItem(
+//                LaunchedEffect(Unit) {
+//                    productViewModel.getProductByCode(product.code)
+//                }
+                ProductItems(
                     title = product.title,
                     code = product.code,
-                    quantity = product.quantity,
                     price = product.price,
-                    size = product.size,
-                    color = product.color,
                     image = product.image,
-                    category = product.category,
-                    description = product.description,
-                    createdAt = product.createdAt,
-                    updatedAt = product.updatedAt,
                     onclick = {
                         navController.navigate(
-                            "productDetail/${product.title}/${product.code}/${product.quantity}/${product.price}/$encodedSize/$encodedColor/$encodedImageUrl/${product.category}/${product.description}/${product.createdAt}/${product.updatedAt}"
+                            "productDetail/${product.title}/${product.code}/${product.price}/${product.quantity}/${product.description}/$encodedImageUrl/${encodedColor}/${encodedSize}"
                         )
                     }
                 )
@@ -398,10 +372,10 @@ fun HomeScreen(navController: NavHostController, productViewModel: ProductViewMo
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colors.background)
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
     ) {
         SearchBar(productViewModel= ProductViewModel())
-        Spacer(modifier = Modifier.height(16.dp))
+//        Spacer(modifier = Modifier.height(16.dp))
 
         // Phần banner
         val imageList = listOf(
@@ -419,9 +393,9 @@ fun HomeScreen(navController: NavHostController, productViewModel: ProductViewMo
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         val categories = listOf(
-            Pair(R.drawable.category1, "Category 1"),
-            Pair(R.drawable.category2, "Category 2"),
-            Pair(R.drawable.category3, "Category 3")
+            Pair(R.drawable.category1, "ADIDAS"),
+            Pair(R.drawable.category2, "NIKE"),
+            Pair(R.drawable.category3, "PUMA")
         )
         CategoryList(categories)
         Spacer(modifier = Modifier.height(16.dp))
@@ -444,71 +418,73 @@ fun BottomAppBarContent(navController: NavHostController, currentScreen: String)
     val selected_btn_choose = Color(0xFF000000) // Màu đen cho mục được chọn
     val selected_btn_not_choose = Color(0xFFBEBEBE) // Màu xám khói cho mục không được chọn
 
-    BottomNavigation(
-        backgroundColor = background_btnBottom_navi,
-        modifier = Modifier
-            .height(100.dp)
-            .navigationBarsPadding()
-    ) {
-
-        BottomNavigationItem(
-            icon = { Icon(Icons.Filled.Home, contentDescription = "Trang Chủ") },
-            label = { Text("Home", textAlign = TextAlign.Center) },
-            selected = currentScreen == "home", // Kiểm tra nếu màn hình hiện tại là "home"
-            onClick = {
-                navController.navigate("home") {
-                    launchSingleTop = true
-                    restoreState = true
-                }
-            },
-            selectedContentColor = selected_btn_choose, // Màu nâu cho mục được chọn
-            unselectedContentColor = selected_btn_not_choose, // Màu xanh nhạt cho mục không được chọn
+        BottomNavigation(
+            backgroundColor = background_btnBottom_navi,
             modifier = Modifier
-                .height(if (currentScreen == "home") 120.dp else 100.dp) // Phóng to khi được chọn
-        )
-        BottomNavigationItem(
-            icon = { Icon(Icons.Filled.Bill, contentDescription = "Hóa dơn") },
-            label = { Text("Hóa đơn", textAlign = TextAlign.Center) },
-            selected = currentScreen == "history", // Kiểm tra nếu màn hình hiện tại là "favorites"
-            onClick = {
-                navController.navigate("history")
-            },
-            selectedContentColor = selected_btn_choose,
-            unselectedContentColor = selected_btn_not_choose,
-            modifier = Modifier
-                .height(if (currentScreen == "history") 120.dp else 100.dp)
-        )
+                .fillMaxWidth()
+                .height(100.dp)
+                .navigationBarsPadding()
+        ) {
 
-        BottomNavigationItem(
-            icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Giỏ hàng") },
-            label = { Text("Giỏ hàng", textAlign = TextAlign.Center) },
-            selected = currentScreen == "cart", // Kiểm tra nếu màn hình hiện tại là "cart"
-            onClick = {
-                navController.navigate("cart") {
-                    launchSingleTop = true
-                    restoreState = true
-                }
-            },
-            selectedContentColor = selected_btn_choose,
-            unselectedContentColor = selected_btn_not_choose,
-            modifier = Modifier
-                .height(if (currentScreen == "cart") 120.dp else 100.dp)
-        )
+            BottomNavigationItem(
+                icon = { Icon(Icons.Filled.Home, contentDescription = "Trang Chủ") },
+                label = { Text("Home", textAlign = TextAlign.Center) },
+                selected = currentScreen == "home", // Kiểm tra nếu màn hình hiện tại là "home"
+                onClick = {
+                    navController.navigate("home") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                selectedContentColor = selected_btn_choose, // Màu nâu cho mục được chọn
+                unselectedContentColor = selected_btn_not_choose, // Màu xanh nhạt cho mục không được chọn
+                modifier = Modifier
+                    .height(if (currentScreen == "home") 120.dp else 100.dp) // Phóng to khi được chọn
+            )
+            BottomNavigationItem(
+                icon = { Icon(Icons.Filled.Bill, contentDescription = "Hóa dơn") },
+                label = { Text("Hóa đơn", textAlign = TextAlign.Center) },
+                selected = currentScreen == "history", // Kiểm tra nếu màn hình hiện tại là "favorites"
+                onClick = {
+                    navController.navigate("history")
+                },
+                selectedContentColor = selected_btn_choose,
+                unselectedContentColor = selected_btn_not_choose,
+                modifier = Modifier
+                    .height(if (currentScreen == "history") 120.dp else 100.dp)
+            )
 
-        BottomNavigationItem(
-            icon = { Icon(Icons.Filled.Person, contentDescription = "Tài Khoản") },
-            label = { Text("Tài Khoản", textAlign = TextAlign.Center) },
-            selected = currentScreen == "account", // Kiểm tra nếu màn hình hiện tại là "account"
-            onClick = {
-                navController.navigate("account")
-            },
-            selectedContentColor = selected_btn_choose,
-            unselectedContentColor = selected_btn_not_choose,
-            modifier = Modifier
-                .height(if (currentScreen == "account") 120.dp else 100.dp)
-        )
+            BottomNavigationItem(
+                icon = { Icon(Icons.Filled.ShoppingCart, contentDescription = "Giỏ hàng") },
+                label = { Text("Giỏ hàng", textAlign = TextAlign.Center) },
+                selected = currentScreen == "cart", // Kiểm tra nếu màn hình hiện tại là "cart"
+                onClick = {
+                    navController.navigate("cart") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                selectedContentColor = selected_btn_choose,
+                unselectedContentColor = selected_btn_not_choose,
+                modifier = Modifier
+                    .height(if (currentScreen == "cart") 120.dp else 100.dp)
+            )
 
-    }
+            BottomNavigationItem(
+                icon = { Icon(Icons.Filled.Person, contentDescription = "Tài Khoản") },
+                label = { Text("Tài Khoản", textAlign = TextAlign.Center) },
+                selected = currentScreen == "account", // Kiểm tra nếu màn hình hiện tại là "account"
+                onClick = {
+                    navController.navigate("account")
+                },
+                selectedContentColor = selected_btn_choose,
+                unselectedContentColor = selected_btn_not_choose,
+                modifier = Modifier
+                    .height(if (currentScreen == "account") 120.dp else 100.dp)
+            )
+
+        }
+
 }
 
 

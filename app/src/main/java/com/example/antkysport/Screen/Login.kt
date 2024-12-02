@@ -2,6 +2,7 @@ package com.example.antkysport.Screen
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -47,25 +48,28 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModelProvider
 import com.example.antkysport.Screen.ui.theme.ComvietTheme
 import com.example.antkysport.ViewModel.AuthViewModel
-import com.example.antkysport.ViewModel.UserViewModel
+import com.example.antkysport.ViewModel.AuthViewModelFactory
 
 
 class Login : ComponentActivity() {
-    private val authViewModel = AuthViewModel()//Khởi tạo ViewModel
+    private lateinit var authViewModel: AuthViewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val factory = AuthViewModelFactory(applicationContext)
+        authViewModel = ViewModelProvider(this, factory).get(AuthViewModel::class.java)
         setContent {
             val sharedPreferences = getSharedPreferences("MyAppPrefs",MODE_PRIVATE)
             val token = sharedPreferences.getString("userToken",null)
             val tokenExpiration = sharedPreferences.getLong("tokenExpiration",0)
             val editor = sharedPreferences.edit()
+            Log.d("zzz", "token: "+token)
             ComvietTheme {
                 if (token != null && System.currentTimeMillis()<tokenExpiration){
                     // Token còn hiệu lực
@@ -115,11 +119,10 @@ fun isPasswordValid(password: String): Boolean {
     return password.matches(passwordRegex) // Kiểm tra định dạng mật khẩu
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(onLoginClick:()-> Unit,onRegisterClick:()-> Unit,authViewModel:AuthViewModel
-,userViewModel: UserViewModel = viewModel() ){
+, ){
     val context = LocalContext.current
     var email by rememberSaveable { mutableStateOf("") } // Lưu trữ và khôi phục trạng thái cho email
     var password by rememberSaveable { mutableStateOf("") } // Lưu trữ và khôi phục trạng thái cho mật khẩu
@@ -322,14 +325,5 @@ fun LoginScreen(onLoginClick:()-> Unit,onRegisterClick:()-> Unit,authViewModel:A
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview2() {
-    val mockAuthViewModel = AuthViewModel()
-    ComvietTheme {
-        LoginScreen(onLoginClick = {}, onRegisterClick = {}, authViewModel = mockAuthViewModel) // Xem trước màn hình đăng nhập
     }
 }

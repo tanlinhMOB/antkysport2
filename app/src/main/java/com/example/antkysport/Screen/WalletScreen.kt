@@ -52,7 +52,6 @@ class WalletScreen : ComponentActivity() {
                 NavHost(navController = navController, startDestination = "wallet") {
                     composable("wallet"){ WalletCompose(navController) }
                 }
-
             }
         }
     }
@@ -82,7 +81,7 @@ fun TopBar() {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "My Wallet",
+            text = "Ví của tôi",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = Color.Black
@@ -95,6 +94,7 @@ fun TopBar() {
 fun BalanceCard(navController: NavController) {
     var showAddMoneyDialog by remember { mutableStateOf(false) }
     var showWithdrawDialog by remember { mutableStateOf(false) }
+    var amount by remember { mutableStateOf("") }
     Card(
         shape = RoundedCornerShape(16.dp),
         backgroundColor = Color.White,
@@ -108,7 +108,7 @@ fun BalanceCard(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             androidx.compose.material3.Text(
-                text = "Available Balance",
+                text = "0 VNĐ",
                 fontSize = 16.sp,
                 color = Color.Gray
             )
@@ -117,10 +117,10 @@ fun BalanceCard(navController: NavController) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
-                ActionButton(iconRes = R.drawable.plus, label = "Add Money") {
+                ActionButton(iconRes = R.drawable.plus, label = "Nạp tiền") {
                     showAddMoneyDialog = true
                 }
-                ActionButton(iconRes = R.drawable.money_withdrawal, label = "Withdraw") {
+                ActionButton(iconRes = R.drawable.money_withdrawal, label = "Rút tiền") {
                     showWithdrawDialog = true
                 }
             }
@@ -139,15 +139,18 @@ fun BalanceCard(navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Add Money",
+                        text = "Nạp tiền",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     TextField(
-                        value = "",
-                        onValueChange = {},
-                        label = { Text("Enter Amount" , color = MaterialTheme.colorScheme.onSurfaceVariant)},
+                        value = amount,
+                        onValueChange = { newValue ->
+                            // Chỉ cho phép nhập số nếu cần thiết
+                            amount = newValue.filter { it.isDigit() }
+                        },
+                        label = { Text("Nhập số tiền", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         colors = TextFieldDefaults.textFieldColors(
                             containerColor = MaterialTheme.colorScheme.surface,
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,
@@ -180,15 +183,18 @@ fun BalanceCard(navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Add WithDraw",
+                        text = "Rút tiền",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     TextField(
-                        value = "",
-                        onValueChange = {},
-                        label = { Text("Enter Amount" , color = MaterialTheme.colorScheme.onSurfaceVariant)},
+                        value = amount,
+                        onValueChange = { newValue ->
+                            // Chỉ cho phép nhập số nếu cần thiết
+                            amount = newValue.filter { it.isDigit() }
+                        },
+                        label = { Text("Nhập số tiền", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                         colors = TextFieldDefaults.textFieldColors(
                             containerColor = MaterialTheme.colorScheme.surface,
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,
@@ -229,7 +235,7 @@ fun ActionButton(iconRes: Int, label: String, onClick: () -> Unit) {
 fun TransactionList() {
     Column {
         Text(
-            text = "Transactions",
+            text = "Lịch sử",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = Color.Black
@@ -239,16 +245,16 @@ fun TransactionList() {
         // Example transaction items
         TransactionItem(
             logoRes = R.drawable.btn_1,
-            name = "Dangote",
-            company = "Dangote Inc",
+            name = "Tiền nạp",
+            company = "chuyển khoản",
             amount = "+N15,000",
             amountColor = Color.Green
         )
         Spacer(modifier = Modifier.height(10.dp))
         TransactionItem(
             logoRes = R.drawable.btn_2,
-            name = "Shell",
-            company = "Shell Inc",
+            name = "Tiền rút",
+            company = "chuyển khoản",
             amount = "-N10,000",
             amountColor = Color.Red
         )

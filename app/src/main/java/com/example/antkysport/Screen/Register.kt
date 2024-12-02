@@ -58,7 +58,7 @@ import com.example.antkysport.ViewModel.AuthViewModel
 
 
 class Register : ComponentActivity() {
-    private val authViewModel = AuthViewModel()
+    private val authViewModel = AuthViewModel(this)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -321,15 +321,15 @@ fun RegisterScreen(onBackToLogin:()->Unit,authViewModel: AuthViewModel){
         }
     }
 }
-@Preview(showBackground = true)
-@Composable
-fun PreviewRegisterScreen() {
-    // Tạo một mock AuthViewModel không có chức năng thực
-    val mockAuthViewModel = AuthViewModel()
-
-    // Gọi màn hình RegisterScreen với các giá trị giả
-    RegisterScreen(
-        onBackToLogin = {}, // Hành động giả khi nhấn "Trở lại"
-        authViewModel = mockAuthViewModel
-    )
-}
+//@Preview(showBackground = true)
+//@Composable
+//fun PreviewRegisterScreen() {
+//    // Tạo một mock AuthViewModel không có chức năng thực
+//    val mockAuthViewModel = AuthViewModel()
+//
+//    // Gọi màn hình RegisterScreen với các giá trị giả
+//    RegisterScreen(
+//        onBackToLogin = {}, // Hành động giả khi nhấn "Trở lại"
+//        authViewModel = mockAuthViewModel
+//    )
+//}

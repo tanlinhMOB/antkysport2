@@ -52,7 +52,8 @@ android {
 dependencies {
 
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.0")
+    implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.6.0")
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -80,6 +81,8 @@ dependencies {
     implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation ("io.coil-kt:coil-compose:1.4.0")
     implementation ("com.google.accompanist:accompanist-swiperefresh:0.30.1")
+
+    implementation ("com.google.accompanist:accompanist-flowlayout:0.32.0")
 
     implementation(kotlin("script-runtime"))
 }
